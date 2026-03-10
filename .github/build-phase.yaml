@@ -1,0 +1,35 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write # Allow the workflow to read and write repository contents (e.g., for commit status updates)
+
+env:
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (LTS recommended)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '23'   # use LTS if you don't need v23
+
+      - name: Frontend Syntax Check
+        run: |
+          cd frontend
+          find . \( -name "*.js" -o -name "*.jsx" \) -exec node --check {} +
+
+      - name: Backend Syntax Check
+        run: |
+         cd backend
+         python -m compileall . 
