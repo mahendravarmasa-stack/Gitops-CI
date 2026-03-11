@@ -172,7 +172,7 @@ jobs:
           yq -i '
             (. | select(.kind=="Deployment")
                | .spec.template.spec.containers[]
-               | select(.name=="backend")
+               | select(.name=="todo-backend")
                | .image)
             = "mahendravarmasa/todobackend:" + strenv(IMAGE_TAG)
           ' todoyaml/backend.yaml
@@ -181,7 +181,7 @@ jobs:
           yq -i '
             (. | select(.kind=="Deployment")
                | .spec.template.spec.containers[]
-               | select(.name=="frontend")
+               | select(.name=="todo-frontend")
                | .image)
             = "mahendravarmasa/todofrontend:" + strenv(IMAGE_TAG)
           ' todoyaml/frontend.yaml
