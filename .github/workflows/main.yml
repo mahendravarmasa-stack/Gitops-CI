@@ -144,3 +144,53 @@ jobs:
       - name: Scan frontend image
         run: |
           trivy image --severity CRITICAL,HIGH --ignore-unfixed mahendravarmasa/todofrontend:${{ env.IMAGE_TAG }}
+
+  update_cd_repo:
+    runs-on: ubuntu-latest
+    needs: trivy_image_scan
+    steps:
+      - name: Checkout CD repo
+        uses: actions/checkout@v4
+        with:
+          repository: mahendravarmasa-stack/Gitops-CD
+          ref: main
+          token: ${{ secrets.CD_REPO_TOKEN }}
+          path: cd
+
+      - name: Bump images in manifests (safe)
+        working-directory: cd
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        run: |
+          curl -sL https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -o yq && sudo install yq /usr/local/bin/yq
+
+          # -- Safety cleanup: remove any accidental .spec.template from Service docs
+          yq -i '(. | select(.kind=="Service")) |= del(.spec.template)' todoyaml/backend.yaml
+          yq -i '(. | select(.kind=="Service")) |= del(.spec.template)' todoyaml/frontend.yaml
+
+          # -- Update ONLY Deployment images (backend)
+          yq -i '
+            (. | select(.kind=="Deployment")
+               | .spec.template.spec.containers[]
+               | select(.name=="backend")
+               | .image)
+            = "mahendravarmasa/todobackend:" + strenv(IMAGE_TAG)
+          ' todoyaml/backend.yaml
+
+          # -- Update ONLY Deployment images (frontend)
+          yq -i '
+            (. | select(.kind=="Deployment")
+               | .spec.template.spec.containers[]
+               | select(.name=="frontend")
+               | .image)
+            = "mahendravarmasa/todofrontend:" + strenv(IMAGE_TAG)
+          ' todoyaml/frontend.yaml
+
+      - name: Commit & push to CD repo
+        working-directory: cd
+        run: |
+          git config user.name "Mahendravarma"
+          git config user.email "mahendravarmasa@gmail.com"
+          git add -A
+          git commit -m "bump images to ${IMAGE_TAG}" || echo "no changes"
+          git push
